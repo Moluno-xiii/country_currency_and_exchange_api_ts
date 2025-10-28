@@ -32,7 +32,6 @@ const insertCountry = async (country: Omit<CountryMapData, "id">) => {
     ];
 
     const [result] = await db.query(sql, values);
-    console.log("input result", result);
     return result;
   } catch (err) {
     throw err;
@@ -42,7 +41,6 @@ const insertCountry = async (country: Omit<CountryMapData, "id">) => {
 const getAllCountries = async (): Promise<CountryMapData[]> => {
   try {
     const [rows] = await db.query<RowDataPacket[]>("SELECT * FROM Countries");
-    console.log("all data", rows);
     return rows as CountryMapData[];
   } catch (err) {
     throw err;
@@ -55,7 +53,6 @@ const getCountry = async (countryName: string): Promise<CountryMapData[]> => {
       "SELECT * FROM Countries where name = (?)",
       countryName
     );
-    console.log("country data", rows);
     return rows as CountryMapData[];
   } catch (err) {
     throw err;
@@ -68,7 +65,6 @@ const deleteCountry = async (countryName: string): Promise<ResultSetHeader> => {
       "DELETE FROM Countries where name = (?)",
       countryName
     );
-    console.log("delete query resutl", query);
     return query;
   } catch (err) {
     throw err;
@@ -80,7 +76,6 @@ const getTableCount = async (): Promise<{ total_countries: number }[]> => {
     const [result] = await db.query<RowDataPacket[]>(
       "Select Count(*) as total_countries from Countries"
     );
-    console.log(result);
     return result as { total_countries: number }[];
   } catch (err) {
     throw err;
@@ -92,7 +87,6 @@ const getLastUpdate = async (): Promise<{ last_refreshed_at: string }[]> => {
     const [result] = await db.query<RowDataPacket[]>(
       "Select last_refreshed_at from Countries limit 1;"
     );
-    console.log(result);
     return result as { last_refreshed_at: string }[];
   } catch (err) {
     throw err;

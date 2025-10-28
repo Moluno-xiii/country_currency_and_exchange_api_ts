@@ -27,7 +27,6 @@ const getAllCountriesData = async (): Promise<AllCountriesData[]> => {
     const data = await request.json();
     return data;
   } catch (err) {
-    console.error("error occured", err);
     throw new HTTPError(
       "External data source unavailable",
       503,

@@ -1,26 +1,18 @@
-import { Router, Request, Response, NextFunction } from "express";
-import {
-  CountriesApiResponse,
-  CountryMapData,
-  ExchangeApiReturn,
-} from "../types";
-import HTTPError from "../utils/error";
-import getCountriesExchangeRate from "../utils/getCountriesExchangeRate";
-import getCountriesData, {
-  getAllCountriesData,
-} from "../utils/getCountriesData";
-import countriesStatus from "../utils/countriesStatus";
+import { NextFunction, Request, Response, Router } from "express";
 import {
   deleteCountry,
   getAllCountries,
   getCountry,
   insertCountry,
 } from "../db/dbQuery";
-import db from "../db";
+import { CountryMapData } from "../types";
+import countriesStatus from "../utils/countriesStatus";
+import HTTPError from "../utils/error";
+import { getAllCountriesData } from "../utils/getCountriesData";
+import getCountriesExchangeRate from "../utils/getCountriesExchangeRate";
 
 const countriesRoute = Router();
 
-const countriesMap = new Map<string | null, CountryMapData>();
 const invalidCountryCodes: string[] = [];
 const countriesWithNoCurrencies: string[] = [];
 
@@ -45,35 +37,6 @@ countriesRoute.get(
   }
 );
 
-countriesRoute.post(
-  "/country",
-  async (req: Request, res: Response, next: NextFunction) => {
-    try {
-      const countries = await insertCountry({
-        capital: "Accra",
-        currency_code: "GHC",
-        estimated_gdp: 100302,
-        exchange_rate: 1500.42,
-        flag_url: "https://flagcdn.com/ng.svg",
-        last_refreshed_at: new Date().toISOString(),
-        name: "Ghana",
-        population: 230000000,
-        region: "Africa",
-      });
-      res.json({
-        countries,
-        message: "INsert successful",
-      });
-    } catch (err) {
-      console.error(err);
-      res.status(500).json({
-        message: err instanceof Error ? err.message : "unknown error",
-      });
-      next();
-    }
-  }
-);
-
 countriesRoute.get(
   "/:name",
   async (req: Request, res: Response, next: NextFunction) => {
@@ -84,9 +47,6 @@ countriesRoute.get(
       res.status(404).json({ message: "Country not found" });
       return;
     }
-    // res.json({
-    //   country: country[0],
-    // });
     res.json(country[0]);
   }
 );
@@ -95,8 +55,6 @@ countriesRoute.delete(
   "/:name",
   async (req: Request, res: Response, next: NextFunction) => {
     const { name: countryName } = req.params;
-    // countriesMap.delete(countryName);
-    // countriesStatus.updateTotalCountries(countriesMap.size);
 
     try {
       const query = await deleteCountry(countryName);
@@ -108,7 +66,6 @@ countriesRoute.delete(
 
       res.json({
         message: countryName + " deleted successfully!",
-        // size: countriesMap.size,
       });
     } catch (err) {
       res.status(500).json({ message: "INternal server error" });
@@ -144,7 +101,6 @@ countriesRoute.post(
           countriesWithNoCurrencies.push(country.name);
           storedData = {
             name: country.name,
-            // id: crypto.randomUUID(),
             capital: country.capital,
             region: country.region,
             population: country.population,

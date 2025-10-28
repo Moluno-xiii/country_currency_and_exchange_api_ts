@@ -8,13 +8,4 @@ indexRoute.get("/", (req: Request, res: Response, next: NextFunction) => {
   });
 });
 
-indexRoute.post("/", (req: Request, res: Response, next: NextFunction) => {
-  try {
-    res.status(200).json({ message: "" });
-  } catch (err) {
-    console.error(err);
-    next(err);
-  }
-});
-
 export default indexRoute;
