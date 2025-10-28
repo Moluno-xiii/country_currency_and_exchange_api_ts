@@ -56,4 +56,22 @@ type Currency = {
   symbol: string;
 };
 
-export type { ExchangeApiReturn, CountriesApiResponse, AllCountriesData };
+type CountryMapData = {
+  id: string;
+  name: string;
+  capital: string;
+  region: string;
+  population: number;
+  currency_code: string | null;
+  exchange_rate: number | null;
+  estimated_gdp: number | null;
+  flag_url: string | null;
+  last_refreshed_at: string;
+};
+
+export type {
+  ExchangeApiReturn,
+  CountriesApiResponse,
+  AllCountriesData,
+  CountryMapData,
+};

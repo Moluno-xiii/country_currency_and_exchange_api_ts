@@ -1,85 +1,117 @@
 import { Router, Request, Response, NextFunction } from "express";
-import { CountriesApiResponse, ExchangeApiReturn } from "../types";
+import {
+  CountriesApiResponse,
+  CountryMapData,
+  ExchangeApiReturn,
+} from "../types";
 import HTTPError from "../utils/error";
 import getCountriesExchangeRate from "../utils/getCountriesExchangeRate";
 import getCountriesData, {
   getAllCountriesData,
 } from "../utils/getCountriesData";
 import countriesStatus from "../utils/countriesStatus";
-const countriesRoute = Router();
+import {
+  deleteCountry,
+  getAllCountries,
+  getCountry,
+  insertCountry,
+} from "../db/dbQuery";
 
-type CountryMapData = {
-  id: string;
-  name: string;
-  capital: string;
-  region: string;
-  population: number;
-  currency_code: string | null;
-  exchange_rate: number | null;
-  estimated_gdp: number | null;
-  flag_url: string | null;
-  last_refreshed_at: string;
-};
+const countriesRoute = Router();
 
 const countriesMap = new Map<string | null, CountryMapData>();
 const invalidCountryCodes: string[] = [];
 const countriesWithNoCurrencies: string[] = [];
-// const invalidCountryCodes = new Map<string | null, string>();
 
-//    Math.random() * (2000 - 1000) + 1000
+countriesRoute.get(
+  "/",
+  async (req: Request, res: Response, next: NextFunction) => {
+    const {
+      region,
+      currency,
+      sort,
+      name,
+      population,
+      currency_code,
+      exchange_rate,
+    } = req.query;
 
-// post countries/refresh
-// each country with it's rate e.g NGN => 1600
-// estimated_gdp = population * (random 1000 - 2000) / exchange rate
-// store or update it in mysql as cached data.
+    const countries = await getAllCountries();
+    res.json({
+      countries,
+      queries: req.query,
+    });
+  }
+);
 
-// currency handling : store one currncy if a country has more than one.
-// if currencies array is empty, don't call the currencies api for thi country :
-// set country_code to null, exchange_rate to null, estimated_gdp to 0
-
-// if currency_code is not found in the exchange rates api:
-//  set exchange_rate to null
-// set estimated_gdp to null
-// still store the country record
-
-// batch update the db, instead of multiple round trips
-
-countriesRoute.get("/", (req: Request, res: Response, next: NextFunction) => {
-  const { region, currency, sort } = req.query;
-  res.json({
-    countries: Object.fromEntries(countriesMap.entries()),
-    queries: req.query,
-  });
-});
+countriesRoute.post(
+  "/country",
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const countries = await insertCountry({
+        capital: "Accra",
+        currency_code: "GHC",
+        estimated_gdp: 100302,
+        exchange_rate: 1500.42,
+        flag_url: "https://flagcdn.com/ng.svg",
+        last_refreshed_at: new Date().toISOString(),
+        name: "Ghana",
+        population: 230000000,
+        region: "Africa",
+      });
+      res.json({
+        countries,
+        message: "INsert successful",
+      });
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({
+        message: err instanceof Error ? err.message : "unknown error",
+      });
+      next();
+    }
+  }
+);
 
 countriesRoute.get(
   "/:name",
-  (req: Request, res: Response, next: NextFunction) => {
+  async (req: Request, res: Response, next: NextFunction) => {
     const { name: countryName } = req.params;
-    const country = countriesMap.get(countryName);
-
-    if (!country) {
-      res.status(404).json({ mesage: "Country not found" });
+    const country = await getCountry(countryName);
+    // validate countryName
+    if (country.length < 1) {
+      res.status(404).json({ message: "Country not found" });
       return;
     }
-
-    res.json({
-      country,
-    });
+    // res.json({
+    //   country: country[0],
+    // });
+    res.json(country[0]);
   }
 );
 
 countriesRoute.delete(
   "/:name",
-  (req: Request, res: Response, next: NextFunction) => {
+  async (req: Request, res: Response, next: NextFunction) => {
     const { name: countryName } = req.params;
-    countriesMap.delete(countryName);
-    countriesStatus.updateTotalCountries(countriesMap.size);
+    // countriesMap.delete(countryName);
+    // countriesStatus.updateTotalCountries(countriesMap.size);
 
-    res.json({
-      message: countryName + " deleted successfully!",
-      size: countriesMap.size,
-    });
+    try {
+      const query = await deleteCountry(countryName);
+
+      if (query.affectedRows === 0) {
+        res.status(400).json({ message: "Country not found" });
+        return;
+      }
+
+      res.json({
+        message: countryName + " deleted successfully!",
+        // size: countriesMap.size,
+      });
+    } catch (err) {
+      res.status(500).json({ message: "INternal server error" });
+    }
   }
 );
 
@@ -173,7 +205,7 @@ countriesRoute.post(
       });
     } catch (err: unknown) {
       if (err instanceof HTTPError) {
-        console.log("current map data", countriesMap.entries());
+        // console.log("current map data", countriesMap.entries());
         console.error(err);
         res.status(err.statusCode).json({
           message: err.message,
@@ -182,7 +214,7 @@ countriesRoute.post(
         return;
       }
       if (err instanceof Error) {
-        console.log("current map data", countriesMap.entries());
+        // console.log("current map data", countriesMap.entries());
         console.error(err);
         res
           .status(500)
