@@ -16,6 +16,7 @@ import {
   getCountry,
   insertCountry,
 } from "../db/dbQuery";
+import db from "../db";
 
 const countriesRoute = Router();
 
@@ -135,7 +136,7 @@ countriesRoute.post(
       const refreshDate = new Date().toISOString();
       countriesStatus.updateRefreshDate(refreshDate);
       for (const country of countriesData) {
-        let storedData: CountryMapData;
+        let storedData: Omit<CountryMapData, "id">;
 
         const countryCurrencyArray = country.currencies?.[0] ?? null;
 
@@ -143,7 +144,7 @@ countriesRoute.post(
           countriesWithNoCurrencies.push(country.name);
           storedData = {
             name: country.name,
-            id: crypto.randomUUID(),
+            // id: crypto.randomUUID(),
             capital: country.capital,
             region: country.region,
             population: country.population,
@@ -153,7 +154,7 @@ countriesRoute.post(
             currency_code: null,
             flag_url: country.flag,
           };
-          countriesMap.set(country.name, storedData);
+          await insertCountry(storedData);
           continue;
         }
 
@@ -164,7 +165,6 @@ countriesRoute.post(
           invalidCountryCodes.push(country.name);
           storedData = {
             name: country.name,
-            id: crypto.randomUUID(),
             capital: country.capital,
             region: country.region,
             population: country.population,
@@ -174,8 +174,9 @@ countriesRoute.post(
             currency_code: null,
             flag_url: country.flag,
           };
+          await insertCountry(storedData);
 
-          countriesMap.set(country.name, storedData);
+          continue;
         }
 
         const countryGDP =
@@ -184,7 +185,6 @@ countriesRoute.post(
 
         storedData = {
           name: country.name,
-          id: crypto.randomUUID(),
           capital: country.capital,
           region: country.region,
           population: country.population,
@@ -194,18 +194,16 @@ countriesRoute.post(
           currency_code: country.currencies![0].code,
           flag_url: country.flag,
         };
-        countriesMap.set(country.name, storedData);
+        await insertCountry(storedData);
       }
-      countriesStatus.updateTotalCountries(countriesMap.size);
+
       res.json({
-        countryMapData: Object.fromEntries(countriesMap.entries()),
-        countriesSize: countriesMap.size,
+        message: "Cache refreshed successfully",
         invalidCountryCodes,
         countriesWithNoCurrencies,
       });
     } catch (err: unknown) {
       if (err instanceof HTTPError) {
-        // console.log("current map data", countriesMap.entries());
         console.error(err);
         res.status(err.statusCode).json({
           message: err.message,
@@ -214,7 +212,6 @@ countriesRoute.post(
         return;
       }
       if (err instanceof Error) {
-        // console.log("current map data", countriesMap.entries());
         console.error(err);
         res
           .status(500)
