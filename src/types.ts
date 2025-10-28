@@ -47,7 +47,7 @@ type AllCountriesData = {
   population: number;
   flag: string | null;
   independent: boolean;
-  currencies: Currency[];
+  currencies: Currency[] | null;
 };
 
 type Currency = {
