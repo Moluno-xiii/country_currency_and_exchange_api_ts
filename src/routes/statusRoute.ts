@@ -11,8 +11,8 @@ statusRoute.get(
         getTableCount(),
       ]);
       res.json({
-        last_refreshed_at,
         total_countries: count[0].total_countries,
+        last_refreshed_at,
       });
     } catch (err) {
       res.status(500).json({

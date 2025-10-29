@@ -1,11 +1,20 @@
+import path from "path";
+import fs from "fs";
 import { NextFunction, Request, Response, Router } from "express";
+import z from "zod";
 import {
   deleteCountry,
+  generateImage,
   getAllCountries,
   getCountry,
   insertCountry,
 } from "../db/dbQuery";
-import { CountryMapData } from "../types";
+import validate from "../middlewares/validate";
+import {
+  CountryMapData,
+  getCountriesQueryParams,
+  getCountriesQuerySchema,
+} from "../types";
 import countriesStatus from "../utils/countriesStatus";
 import HTTPError from "../utils/error";
 import { getAllCountriesData } from "../utils/getCountriesData";
@@ -18,31 +27,39 @@ const countriesWithNoCurrencies: string[] = [];
 
 countriesRoute.get(
   "/",
+  validate(getCountriesQuerySchema, "query"),
   async (req: Request, res: Response, next: NextFunction) => {
-    const {
+    const { region, currency, population, currency_code, exchange_rate, sort } =
+      req.query as getCountriesQueryParams;
+
+    const countries = await getAllCountries({
       region,
       currency,
-      sort,
-      name,
       population,
       currency_code,
       exchange_rate,
-    } = req.query;
-
-    const countries = await getAllCountries();
-    res.json({
-      countries,
-      queries: req.query,
+      sort,
     });
+    res.json(countries);
   }
 );
 
+countriesRoute.get("/image", async (req, res) => {
+  const imagePath = path.join(process.cwd(), "cache", "summary.png");
+
+  if (fs.existsSync(imagePath)) {
+    res.sendFile(imagePath);
+  } else {
+    res.status(404).json({ error: "Summary image not found" });
+  }
+});
+
 countriesRoute.get(
   "/:name",
+  validate(z.object({ name: z.string() }), "params"),
   async (req: Request, res: Response, next: NextFunction) => {
     const { name: countryName } = req.params;
     const country = await getCountry(countryName);
-    // validate countryName
     if (country.length < 1) {
       res.status(404).json({ message: "Country not found" });
       return;
@@ -70,15 +87,6 @@ countriesRoute.delete(
     } catch (err) {
       res.status(500).json({ message: "INternal server error" });
     }
-  }
-);
-
-countriesRoute.get(
-  "/image",
-  (req: Request, res: Response, next: NextFunction) => {
-    res.json({
-      generated_image: "image from cache",
-    });
   }
 );
 
@@ -152,6 +160,7 @@ countriesRoute.post(
         };
         await insertCountry(storedData);
       }
+      await generateImage();
 
       res.json({
         message: "Cache refreshed successfully",
@@ -160,7 +169,6 @@ countriesRoute.post(
       });
     } catch (err: unknown) {
       if (err instanceof HTTPError) {
-        console.error(err);
         res.status(err.statusCode).json({
           message: err.message,
           details: `Cound not fetch data from ${err.apiName}`,
@@ -168,7 +176,6 @@ countriesRoute.post(
         return;
       }
       if (err instanceof Error) {
-        console.error(err);
         res
           .status(500)
           .json({ message: err.message ?? "Unexpected error, try again." });

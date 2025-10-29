@@ -1,6 +1,7 @@
 import { ResultSetHeader, RowDataPacket } from "mysql2";
 import db from ".";
-import { CountryMapData } from "../types";
+import { Country, CountryMapData, getCountriesQueryParams } from "../types";
+import generateSummaryImage from "../utils/generateSummaryImage";
 
 const insertCountry = async (country: Omit<CountryMapData, "id">) => {
   try {
@@ -38,9 +39,60 @@ const insertCountry = async (country: Omit<CountryMapData, "id">) => {
   }
 };
 
-const getAllCountries = async (): Promise<CountryMapData[]> => {
+const sortFieldMap: Record<string, string> = {
+  gdp: "estimated_gdp",
+  population: "population",
+  exchange_rate: "exchange_rate",
+};
+
+const getAllCountries = async (
+  filters: getCountriesQueryParams
+): Promise<CountryMapData[]> => {
+  const { currency, region, population, currency_code, exchange_rate, sort } =
+    filters;
+
+  let query = "SELECT * FROM Countries";
+  const conditions: string[] = [];
+  const values: any[] = [];
+
+  if (region) {
+    conditions.push("region = ?");
+    values.push(region);
+  }
+  if (currency) {
+    conditions.push("currency_code = ?");
+    values.push(currency);
+  }
+  if (population) {
+    conditions.push("population = ?");
+    values.push(population);
+  }
+  if (currency_code) {
+    conditions.push("currency_code = ?");
+    values.push(currency_code);
+  }
+  if (exchange_rate) {
+    conditions.push("exchange_rate = ?");
+    values.push(exchange_rate);
+  }
+
+  if (conditions.length > 0) {
+    query += " where " + conditions.join(" and ");
+  }
+
+  if (sort) {
+    const [field, order] = sort.split("_");
+
+    const allowedOrders = ["asc", "desc"];
+    const column = sortFieldMap[field];
+
+    if (column.includes(field) && allowedOrders.includes(order)) {
+      query += ` order by ${column} ${order.toUpperCase()}`;
+    }
+  }
+
   try {
-    const [rows] = await db.query<RowDataPacket[]>("SELECT * FROM Countries");
+    const [rows] = await db.query<RowDataPacket[]>(query, values);
     return rows as CountryMapData[];
   } catch (err) {
     throw err;
@@ -93,6 +145,20 @@ const getLastUpdate = async (): Promise<{ last_refreshed_at: string }[]> => {
   }
 };
 
+const generateImage = async (): Promise<void> => {
+  try {
+    const [rows] = await db.query<RowDataPacket[]>(
+      "SELECT name, estimated_gdp FROM Countries ORDER BY estimated_gdp DESC limit 5"
+    );
+    const top5 = rows as Country[];
+    const timestamp = new Date().toLocaleString();
+
+    await generateSummaryImage(top5);
+  } catch (err) {
+    throw err;
+  }
+};
+
 export {
   insertCountry,
   getAllCountries,
@@ -100,4 +166,5 @@ export {
   deleteCountry,
   getTableCount,
   getLastUpdate,
+  generateImage,
 };

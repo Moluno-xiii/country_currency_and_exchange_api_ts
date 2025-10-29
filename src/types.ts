@@ -1,3 +1,5 @@
+import z from "zod";
+
 type BaseCountryInfo = { independent: boolean };
 
 type ExchangeApiReturn = {
@@ -69,9 +71,36 @@ type CountryMapData = {
   last_refreshed_at: string;
 };
 
+const sortOptions = [
+  "gdp_asc",
+  "gdp_desc",
+  "population_asc",
+  "population_desc",
+] as const;
+
+const getCountriesQuerySchema = z
+  .object({
+    region: z.string().optional(),
+    currency: z.string().optional(),
+    population: z.coerce.number().optional(),
+    currency_code: z.string().optional(),
+    exchange_rate: z.coerce.number().optional(),
+    sort: z.enum(sortOptions).optional(),
+  })
+  .strict();
+
+type getCountriesQueryParams = z.infer<typeof getCountriesQuerySchema>;
+type Country = {
+  name: string;
+  estimated_gdp: number;
+};
+
 export type {
   ExchangeApiReturn,
   CountriesApiResponse,
   AllCountriesData,
   CountryMapData,
+  getCountriesQueryParams,
+  Country,
 };
+export { getCountriesQuerySchema };
