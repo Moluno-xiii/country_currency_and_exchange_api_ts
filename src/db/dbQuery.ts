@@ -3,12 +3,20 @@ import db from ".";
 import { Country, CountryMapData, getCountriesQueryParams } from "../types";
 import generateSummaryImage from "../utils/generateSummaryImage";
 
-const insertCountry = async (country: Omit<CountryMapData, "id">) => {
+const sortFieldMap: Record<string, string> = {
+  gdp: "estimated_gdp",
+  population: "population",
+  exchange_rate: "exchange_rate",
+};
+
+const insertCountries = async (countries: Omit<CountryMapData, "id">[]) => {
   try {
+    if (!countries.length) return;
+
     const sql = `
-   INSERT INTO Countries
+      INSERT INTO Countries
         (name, capital, region, population, currency_code, exchange_rate, estimated_gdp, flag_url)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      VALUES ${countries.map(() => "(?, ?, ?, ?, ?, ?, ?, ?)").join(",")}
       ON DUPLICATE KEY UPDATE
         capital = VALUES(capital),
         region = VALUES(region),
@@ -16,11 +24,10 @@ const insertCountry = async (country: Omit<CountryMapData, "id">) => {
         currency_code = VALUES(currency_code),
         exchange_rate = VALUES(exchange_rate),
         estimated_gdp = VALUES(estimated_gdp),
-        flag_url = VALUES(flag_url),
-        last_refreshed_at = VALUES(last_refreshed_at);
-  `;
+        flag_url = VALUES(flag_url);
+    `;
 
-    const values = [
+    const values = countries.flatMap((country) => [
       country.name,
       country.capital,
       country.region,
@@ -29,20 +36,13 @@ const insertCountry = async (country: Omit<CountryMapData, "id">) => {
       country.exchange_rate ?? null,
       country.estimated_gdp ?? null,
       country.flag_url ?? null,
-      country.last_refreshed_at,
-    ];
+    ]);
 
     const [result] = await db.query(sql, values);
     return result;
   } catch (err) {
     throw err;
   }
-};
-
-const sortFieldMap: Record<string, string> = {
-  gdp: "estimated_gdp",
-  population: "population",
-  exchange_rate: "exchange_rate",
 };
 
 const getAllCountries = async (
@@ -160,11 +160,11 @@ const generateImage = async (): Promise<void> => {
 };
 
 export {
-  insertCountry,
   getAllCountries,
   getCountry,
   deleteCountry,
   getTableCount,
   getLastUpdate,
   generateImage,
+  insertCountries,
 };

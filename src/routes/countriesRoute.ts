@@ -7,7 +7,7 @@ import {
   generateImage,
   getAllCountries,
   getCountry,
-  insertCountry,
+  insertCountries,
 } from "../db/dbQuery";
 import validate from "../middlewares/validate";
 import {
@@ -61,7 +61,7 @@ countriesRoute.get(
     const { name: countryName } = req.params;
     const country = await getCountry(countryName);
     if (country.length < 1) {
-      res.status(404).json({ message: "Country not found" });
+      res.status(404).json({ error: "Country not found" });
       return;
     }
     res.json(country[0]);
@@ -77,7 +77,7 @@ countriesRoute.delete(
       const query = await deleteCountry(countryName);
 
       if (query.affectedRows === 0) {
-        res.status(400).json({ message: "Country not found" });
+        res.status(404).json({ message: "Country not found" });
         return;
       }
 
@@ -98,6 +98,8 @@ countriesRoute.post(
         getAllCountriesData(),
         getCountriesExchangeRate(),
       ]);
+      const allCountriesToInsert: Omit<CountryMapData, "id">[] = [];
+
       const refreshDate = new Date().toISOString();
       countriesStatus.updateRefreshDate(refreshDate);
       for (const country of countriesData) {
@@ -118,7 +120,7 @@ countriesRoute.post(
             currency_code: null,
             flag_url: country.flag,
           };
-          await insertCountry(storedData);
+          allCountriesToInsert.push(storedData);
           continue;
         }
 
@@ -138,7 +140,7 @@ countriesRoute.post(
             currency_code: null,
             flag_url: country.flag,
           };
-          await insertCountry(storedData);
+          allCountriesToInsert.push(storedData);
 
           continue;
         }
@@ -158,8 +160,9 @@ countriesRoute.post(
           currency_code: country.currencies![0].code,
           flag_url: country.flag,
         };
-        await insertCountry(storedData);
+        allCountriesToInsert.push(storedData);
       }
+      await insertCountries(allCountriesToInsert);
       await generateImage();
 
       res.json({
